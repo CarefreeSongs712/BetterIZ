@@ -3,135 +3,46 @@ using Il2Cpp;
 using Il2CppTMPro;
 using MelonLoader;
 using Newtonsoft.Json;
+using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.PlayerLoop;
+using Object = UnityEngine.Object;
 
 namespace BetterIZ;
 
-public class PatchMgr
+[RegisterTypeInIl2Cpp]
+public class PatchMgr : MonoBehaviour
 {
-    
-}
+    private int _count=0;
+    public static bool SelectedAll=false;
 
-[HarmonyPatch(typeof(UIMgr), "EnterMainMenu")]
-public static class UIMgrPatch
-{
-    public static void Postfix()
+    public void Awake()
     {
-        GameObject obj1 = new("ModifierInfo");
-        var text1 = obj1.AddComponent<TextMeshProUGUI>();
-        // ReSharper disable once Unity.UnknownResource
-        text1.font = Resources.Load<TMP_FontAsset>("Fonts/ContinuumBold SDF");
-        text1.color = new Color(1, 1, 0, 1);
-        text1.text = "修改器作者为b站@Infinite75\n若存在任何付费/要求三连+关注/私信发链接的情况\n说明你被盗版骗了，请注意隐私和财产安全！！！\n此信息仅在游戏主菜单和修改窗口显示";
-        obj1.transform.SetParent(GameObject.Find("Leaves").transform);
-        obj1.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-        obj1.GetComponent<RectTransform>().sizeDelta = new Vector2(800, 50);
-        obj1.transform.localPosition = new Vector3(-345.5f, -96.1f, 0);
-
-        GameObject obj2 = new("UpgradeInfo");
-        var text2 = obj2.AddComponent<TextMeshProUGUI>();
-        // ReSharper disable once Unity.UnknownResource
-        text2.font = Resources.Load<TMP_FontAsset>("Fonts/ContinuumBold SDF");
-        text2.color = new Color(0, 1, 0, 1);
-        text2.text = "原作者@Infinite75已停更，这是@听雨夜荷的一个fork。\n" +
-                     "项目地址: https://github.com/CarefreeSongs712/PVZRHTools\n" +
-                     "\n" +
-                     "修改器2.7-3.26.4更新日志:\n" +
-                     "1. 修复了一大堆bug。详见github\n"+
-                     "2. 新增功能诸神进化无限刷新\n"+
-                     "3. 新增betterizdata保存冰块里的植物";
-        obj2.transform.SetParent(GameObject.Find("Leaves").transform);
-        obj2.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
-        obj2.GetComponent<RectTransform>().sizeDelta = new Vector2(800, 50);
-        obj2.transform.localPosition = new Vector3(-345.5f, 55f, 0);
     }
-}
 
-
-[HarmonyPatch(typeof(EveManager), nameof(EveManager.SaveCustomIZ))]
-public static class EveManagerPatch
-{
-    [HarmonyPostfix]
-    // ReSharper disable once InconsistentNaming
-    public static void Postfix(EveManager __instance)
+    public void Update()
     {
-        if(!Core.BetterIZDataEnabled)return;
-        var zombiesList = new List<object>();
-        foreach (var zb in Board.Instance.zombieArray)
+        if (SelectedAll)
         {
-            if (zb != null)
+            _count += 1;
+            if (_count == 2147483647)
             {
-                zombiesList.Add(new
-                {
-                    Type = (int)zb.theZombieType,
-                    Row = zb.theZombieRow,
-                    PositionX = zb.transform.position.x,
-                    IsMindControlled = zb.isMindControlled
-                });
-           }
-        }
-
-        var gridItemsList = new List<object>();
-        foreach (var git in GameAPP.board.GetComponent<Board>().griditemArray)
-        {
-            if (git != null)
-            {
-                if (git.theItemType == GridItemType.IceBlock)
-                {
-                    git.TryGetComponent<FreezedPlant>(out var freezedPlant);
-                    if (freezedPlant is not null)
-                    {
-                        gridItemsList.Add(new
-                        {
-                            Type = (int)git.theItemType,
-                            Column = git.theItemColumn,
-                            Row = git.theItemRow,
-                            PlantType = (int)freezedPlant.thePlantType
-                        });
-                        continue;
-                    }
-                }
-                gridItemsList.Add(new
-                {
-                    Type = (int)git.theItemType,
-                    Column = git.theItemColumn,
-                    Row = git.theItemRow
-                });
+                SelectedAll = false;
+                IZBottomMenu.Instance.SelectAll();
+                _count = 0;
             }
         }
-
-        var combinedData = new
+        else
         {
-            Zombies = zombiesList,
-            GridItems = gridItemsList
-        };
-
-        string basePath = Application.persistentDataPath;
-        string fileName = "CustomIZ.extra.json";
-        var path = Path.Combine(basePath, fileName);
-
-        string json = JsonConvert.SerializeObject(combinedData, Formatting.Indented);
-
-        string? directory = Path.GetDirectoryName(path);
-        if (!Directory.Exists(directory))
-        {
-            if (directory != null) Directory.CreateDirectory(directory);
+            _count = 0;
         }
-
-        File.WriteAllText(path, json);
-        MelonLogger.Msg("CustomIZ.extra.json 已保存！");
     }
-}
-
-[HarmonyPatch(typeof(InGameUI_IZ),nameof(InGameUI_IZ.Awake))]
-// ReSharper disable once InconsistentNaming
-public static class InGameUI_IZPatch
-{
-    [HarmonyPostfix]
-    // ReSharper disable once InconsistentNaming
-    public static void Postfix(InGameUI_IZ __instance)
-    { 
-        if(Core.BetterIZDataEnabled)return;
+    public void LoadData(InGameUI_IZ __instance)
+    {
+        foreach (var VARIABLE in __instance.customCards)
+        {
+            
+        }
         
         string basePath = Application.persistentDataPath;
         string fileName = "CustomIZ.extra.json";
@@ -145,6 +56,12 @@ public static class InGameUI_IZPatch
 
         string json = File.ReadAllText(filePath);
         var data = JsonConvert.DeserializeObject<CustomIZData>(json);
+        if(data is null) return;
+        var igui = IZBottomMenu.Instance;
+        if (igui is not null)
+        {
+            igui.ChangeString(data.CustomName);
+        }
 
         foreach (var zombieData in data?.Zombies ?? new List<ZombieData>())
         {
@@ -165,6 +82,7 @@ public static class InGameUI_IZPatch
                 );
             }
         }
+
         foreach (var gridItemData in data?.GridItems ?? new List<GridItemData>())
         {
             if (gridItemData.Type == (int)GridItemType.IceBlock)
@@ -180,19 +98,10 @@ public static class InGameUI_IZPatch
                 {
                     component.InitFreezedPlant((PlantType)gridItemData.PlantType);
                 }
-#if  false
-                    MelonLogger.Msg(gridItemData.PlantType);
-                    var plant = CreatePlant.Instance.SetPlant(gridItemData.Column, gridItemData.Row, (PlantType)gridItemData.PlantType,
-                        null, default, true, false,
-                        null);
-                    plant.TryGetComponent<Plant>(out var component);
-                    if (component is not null)
-                    {
-                        MelonLogger.Msg(component.thePlantType);
-                    }
-#endif
+
                 continue;
             }
+
             GridItem.SetGridItem(
                 gridItemData.Column,
                 gridItemData.Row,
@@ -203,10 +112,160 @@ public static class InGameUI_IZPatch
         MelonLogger.Msg("成功加载自定义IZ数据");
     }
 }
+[HarmonyPatch(typeof(GameAPP))]
+public static class GameAppPatch
+{
+    [HarmonyPostfix]
+    [HarmonyPatch("Start")]
+    public static void PostStart()
+    {
+        GameObject obj = new("Modifier");
+        Object.DontDestroyOnLoad(obj);
+        obj.AddComponent<PatchMgr>();
+    }
+}
 
-// ReSharper disable once InconsistentNaming
+
+[HarmonyPatch(typeof(UIMgr), "EnterMainMenu")]
+public static class UIMgrPatch
+{
+    public static void Postfix()
+    {
+        GameObject obj1 = new("ModifierInfo");
+        var text1 = obj1.AddComponent<TextMeshProUGUI>();
+        // ReSharper disable once Unity.UnknownResource
+        text1.font = Resources.Load<TMP_FontAsset>("Fonts/ContinuumBold SDF");
+        text1.color = new Color(1, 1, 0, 1);
+        text1.text = "BetterIZ 作者: 听雨夜荷\n" +
+                     "快捷键列表:\n" +
+                     "i = 启用更好的IZ存档";
+        obj1.transform.SetParent(GameObject.Find("Leaves").transform);
+        obj1.transform.localScale = new Vector3(0.5f, 0.5f, 0.5f);
+        obj1.GetComponent<RectTransform>().sizeDelta = new Vector2(800, 50);
+        obj1.transform.localPosition = new Vector3(-345.5f, 55f, 0);
+    }
+}
+
+[HarmonyPatch(typeof(EveManager), nameof(EveManager.SaveCustomIZ))]
+public static class EveManagerPatchA
+{
+    [HarmonyPostfix]
+    // ReSharper disable once InconsistentNaming
+    public static void Postfix(EveManager __instance)
+    {
+        if (!Core.BetterIZDataEnabled) return;
+        var zombiesList = new List<ZombieData>();
+        foreach (var zb in Board.Instance.zombieArray)
+        {
+            if (zb != null)
+            {
+                zombiesList.Add(new ZombieData()
+                {
+                    Type = (int)zb.theZombieType,
+                    Row = zb.theZombieRow,
+                    PositionX = zb.transform.position.x,
+                    IsMindControlled = zb.isMindControlled
+                });
+            }
+        }
+
+        var gridItemsList = new List<GridItemData>();
+        foreach (var git in GameAPP.board.GetComponent<Board>().griditemArray)
+        {
+            if (git != null)
+            {
+                if (git.theItemType == GridItemType.IceBlock)
+                {
+                    git.TryGetComponent<FreezedPlant>(out var freezedPlant);
+                    if (freezedPlant is not null)
+                    {
+                        gridItemsList.Add(new GridItemData()
+                        {
+                            Type = (int)git.theItemType,
+                            Column = git.theItemColumn,
+                            Row = git.theItemRow,
+                            PlantType = (int)freezedPlant.thePlantType
+                        });
+                        continue;
+                    }
+                }
+
+                gridItemsList.Add(new GridItemData()
+                {
+                    Type = (int)git.theItemType,
+                    Column = git.theItemColumn,
+                    Row = git.theItemRow
+                });
+            }
+        }
+
+        CustomIZData combinedData = new CustomIZData();
+        combinedData.CustomName = "BetterIZ关卡";
+        combinedData.Zombies = zombiesList;
+        combinedData.GridItems = gridItemsList;
+
+        string basePath = Application.persistentDataPath;
+        string fileName = "CustomIZ.extra.json";
+        var path = Path.Combine(basePath, fileName);
+
+        string json = JsonConvert.SerializeObject(combinedData, Formatting.Indented);
+
+        string? directory = Path.GetDirectoryName(path);
+        if (!Directory.Exists(directory))
+        {
+            if (directory != null) Directory.CreateDirectory(directory);
+        }
+
+        File.WriteAllText(path, json);
+        MelonLogger.Msg("CustomIZ.extra.json 已保存！");
+    }
+}
+
+[HarmonyPatch(typeof(InGameUI_IZ), nameof(InGameUI_IZ.Awake))]
+public class InGameUI_IZPatchA
+{
+    [HarmonyPostfix]
+    public static void Postfix(InGameUI_IZ __instance)
+    {
+        if (!Core.BetterIZDataEnabled) return;
+        var pm = new PatchMgr();
+        pm.LoadData(__instance);
+    }
+}
+
+[HarmonyPatch(typeof(InGameUI_IZ), nameof(InGameUI_IZ.ShowZombieCard))]
+public static class InGameUI_IZPatchB
+{
+    [HarmonyPostfix]
+    public static void Postfix(IZBottomMenu __instance)
+    {
+        PatchMgr.SelectedAll = true;
+    }
+}
+#if false
+[HarmonyPatch(typeof(CreatePlant), nameof(CreatePlant.SetPlant))]
+public static class CreatePlantPatch
+{
+    public static void Prefix(ref PlantType theSeedType,ref bool isFreeSet)
+    {
+        var purple = new PlantType[]
+        {
+            PlantType.TallNut, PlantType.GloomShroom, PlantType.SpikeRock, PlantType.CattailPlant, PlantType.CobCannon
+        };
+        foreach (var s in purple)
+        {
+            if (theSeedType == s)
+            {
+                isFreeSet = true;
+                return;
+            }
+        }
+    }
+}
+#endif
 public class CustomIZData
 {
+    public String? CustomName { get; set; }
     public List<ZombieData>? Zombies { get; set; }
     public List<GridItemData>? GridItems { get; set; }
 }
