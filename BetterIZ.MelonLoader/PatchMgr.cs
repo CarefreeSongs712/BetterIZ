@@ -3,9 +3,7 @@ using Il2Cpp;
 using Il2CppTMPro;
 using MelonLoader;
 using Newtonsoft.Json;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.PlayerLoop;
 using Object = UnityEngine.Object;
 
 namespace BetterIZ;
@@ -13,37 +11,8 @@ namespace BetterIZ;
 [RegisterTypeInIl2Cpp]
 public class PatchMgr : MonoBehaviour
 {
-    private int _count=0;
-    public static bool SelectedAll=false;
-
-    public void Awake()
-    {
-    }
-
-    public void Update()
-    {
-        if (SelectedAll)
-        {
-            _count += 1;
-            if (_count == 2147483647)
-            {
-                SelectedAll = false;
-                IZBottomMenu.Instance.SelectAll();
-                _count = 0;
-            }
-        }
-        else
-        {
-            _count = 0;
-        }
-    }
     public void LoadData(InGameUI_IZ __instance)
     {
-        foreach (var VARIABLE in __instance.customCards)
-        {
-            
-        }
-        
         string basePath = Application.persistentDataPath;
         string fileName = "CustomIZ.extra.json";
         var filePath = Path.Combine(basePath, fileName);
@@ -131,6 +100,7 @@ public static class UIMgrPatch
 {
     public static void Postfix()
     {
+        return;
         GameObject obj1 = new("ModifierInfo");
         var text1 = obj1.AddComponent<TextMeshProUGUI>();
         // ReSharper disable once Unity.UnknownResource
@@ -233,36 +203,6 @@ public class InGameUI_IZPatchA
     }
 }
 
-[HarmonyPatch(typeof(InGameUI_IZ), nameof(InGameUI_IZ.ShowZombieCard))]
-public static class InGameUI_IZPatchB
-{
-    [HarmonyPostfix]
-    public static void Postfix(IZBottomMenu __instance)
-    {
-        PatchMgr.SelectedAll = true;
-    }
-}
-#if false
-[HarmonyPatch(typeof(CreatePlant), nameof(CreatePlant.SetPlant))]
-public static class CreatePlantPatch
-{
-    public static void Prefix(ref PlantType theSeedType,ref bool isFreeSet)
-    {
-        var purple = new PlantType[]
-        {
-            PlantType.TallNut, PlantType.GloomShroom, PlantType.SpikeRock, PlantType.CattailPlant, PlantType.CobCannon
-        };
-        foreach (var s in purple)
-        {
-            if (theSeedType == s)
-            {
-                isFreeSet = true;
-                return;
-            }
-        }
-    }
-}
-#endif
 public class CustomIZData
 {
     public String? CustomName { get; set; }
